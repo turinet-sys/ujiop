@@ -19,19 +19,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Leemos las claves desde las variables de entorno (vacías por defecto para que Render las inyecte)
 os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY", "")
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY", "")
 os.environ["PINECONE_API_KEY"] = os.getenv("PINECONE_API_KEY", "")
 
-# Cerebro y Retriever conectado a la nube (Pinecone)
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-vectorstore = PineconeVectorStore(index_name="ujierpro", embedding=embeddings)
-retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 6})
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
-
-# Almacén de historial de sesión
 chat_histories = {}
+
+# =====================================================================
+# --- TRUCO ANTI-TIMEOUT: CARGA PEREZOSA (LAZY LOADING) ---
+# =====================================================================
+_retriever = None
+
+def get_retriever():
+    global _retriever
+    if _retriever is None:
+        # El cerebro pesado solo se carga la primera vez que se hace una consulta
+        print("Iniciando la descarga del modelo en la memoria...")
+        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        vectorstore = PineconeVectorStore(index_name="ujierpro", embedding=embeddings)
+        _retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 6})
+    return _retriever
 
 # =====================================================================
 # --- RUTAS PARA SERVIR TU PÁGINA WEB ---
@@ -72,7 +80,9 @@ def recibir_pregunta(data: dict):
         chat_histories[session_id] = []
         
     try:
-        docs = retriever.invoke(pregunta)
+        # Aquí activamos el cerebro
+        retriever_activo = get_retriever()
+        docs = retriever_activo.invoke(pregunta)
         sources = list(set([doc.metadata.get("source", "Documento general") for doc in docs]))
         context_str = format_docs(docs)
         
@@ -97,8 +107,9 @@ def recibir_pregunta(data: dict):
 @app.get("/generar-test")
 def generar_test():
     try:
+        retriever_activo = get_retriever()
         temas_busqueda = ["Constitución", "ley", "derechos", "organización", "procedimiento", "administración"]
-        docs = retriever.invoke(random.choice(temas_busqueda))
+        docs = retriever_activo.invoke(random.choice(temas_busqueda))
         contexto = format_docs(docs) if docs else "Constitución Española"
         
         test_prompt = ChatPromptTemplate.from_template(
@@ -117,6 +128,7 @@ def generar_test():
 @app.get("/generar-resumen-inteligente")
 def generar_resumen_inteligente():
     try:
+        retriever_activo = get_retriever()
         temas = ["Constitución", "Tribunal Constitucional", "Cortes Generales", "Procedimiento Administrativo", "Gobierno", "Empleados Públicos"]
         tema_elegido = random.choice(temas)
 
@@ -131,7 +143,7 @@ def generar_resumen_inteligente():
         else:
             web_context = str(web_results)
 
-        docs = retriever.invoke(f"{tema_elegido} {web_context[:100]}")
+        docs = retriever_activo.invoke(f"{tema_elegido} {web_context[:100]}")
         local_context = format_docs(docs) if docs else "Sin datos locales."
 
         resumen_prompt = ChatPromptTemplate.from_template(
