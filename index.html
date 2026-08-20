@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UjierPro Dashboard</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        /* Estilos generales del Dashboard Pro */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; margin: 0; background: #f0f2f5; }
+        
+        /* Barra Lateral (Sidebar) */
+        #sidebar { width: 260px; background: #2c3e50; color: white; padding: 25px; display: flex; flex-direction: column; gap: 12px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        #sidebar h2 { color: #ecf0f1; margin-top: 0; font-size: 22px; text-align: center; border-bottom: 1px solid #4e5d6c; padding-bottom: 15px; }
+        .nav-btn { background: #34495e; border: 1px solid #4e5d6c; color: white; padding: 12px 15px; cursor: pointer; text-align: left; border-radius: 6px; font-size: 15px; transition: background 0.2s; }
+        .nav-btn:hover { background: #3d566e; }
+        .nav-btn.active-nav { background: #007BFF; border-color: #0056b3; }
+        
+        /* Marcador en Sidebar */
+        #score-board { margin-top: auto; background: #1a252f; padding: 15px; border-radius: 6px; font-size: 14px; border: 1px solid #34495e; }
+        #score-board p { margin: 5px 0; color: #bdc3c7; }
+        #score-board span { color: #2ecc71; font-weight: bold; }
+
+        /* Contenido Principal */
+        #main { flex: 1; padding: 30px; overflow-y: auto; }
+        .panel { display: none; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
+        .panel.active-panel { display: block; }
+        
+        h2 { color: #333; margin-top: 0; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input[type="text"] { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; outline: none; }
+        input[type="text"]:focus { border-color: #007BFF; }
+        
+        button { padding: 12px 20px; font-size: 16px; background: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        
+        #respuesta { background: #fafafa; padding: 15px; border-left: 4px solid #007BFF; border-radius: 4px; white-space: pre-wrap; line-height: 1.6; color: #333; min-height: 50px; }
+        .sources-box { margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; font-size: 13px; color: #666; }
+        .source-tag { display: inline-block; background: #e9ecef; padding: 3px 8px; border-radius: 4px; margin: 2px; font-family: monospace; }
+        
+        /* Estilos del Test */
+        .test-btn { background: #28a745; width: 100%; margin-top: 20px; }
+        .test-btn:hover { background: #218838; }
+        #test-container { margin-top: 20px; padding: 20px; border: 1px solid #ccc; border-radius: 6px; background: #ffffff; display: none; }
+        #test-container strong { color: #111; font-size: 16px; display: block; margin-bottom: 12px; line-height: 1.5; }
+        .option-btn { display: block; width: 100%; text-align: left; background: #f8f9fa; color: #212529; border: 1px solid #ced4da; margin: 8px 0; padding: 12px; border-radius: 4px; font-size: 15px; cursor: pointer; font-weight: 500; }
+        .option-btn:hover { background: #e2e6ea; }
+
+        /* --- NUEVOS ESTILOS PARA EL RESUMEN INTELIGENTE --- */
+        #resumen-content { margin-top: 20px; line-height: 1.6; color: #333; }
+        #resumen-content h3 { color: #2c3e50; border-bottom: 2px solid #007BFF; padding-bottom: 5px; }
+        #resumen-content ul { padding-left: 20px; }
+        #resumen-content li { margin-bottom: 10px; }
+        .loading-text { font-style: italic; color: #007BFF; margin: 10px 0; }
+        .resumen-btn { background: #8e44ad; width: 100%; margin-top: 10px; }
+        .resumen-btn:hover { background: #732d91; }
+
+        /* Adaptación exclusiva para móviles en modo PWA (transporte público) */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar { width: 100%; height: auto; padding: 15px; flex-direction: row; box-shadow: none; border-bottom: 1px solid #4e5d6c; align-items: center; }
+            #sidebar h2 { display: none; }
+            .nav-btn { flex: 1; text-align: center; padding: 10px; font-size: 13px; margin: 0 2px;}
+            #score-board { display: none; }
+            #main { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>UjierPro</h2>
+        <button class="nav-btn active-nav" id="btn-chat" onclick="switchPanel('chat-panel', 'btn-chat')">💬 Tutoría (Chat)</button>
+        <button class="nav-btn" id="btn-resumen" onclick="switchPanel('resumen-panel', 'btn-resumen')">🧠 Resumen Pro</button>
+        <button class="nav-btn" id="btn-test" onclick="switchPanel('test-panel', 'btn-test')">📝 Simulacros (Tests)</button>
+        
+        <div id="score-board">
+            <p>📊 Progreso de Sesión:</p>
+            <p>Aciertos: <span id="score-val">0</span></p>
+            <p>Respondidas: <span id="total-val">0</span></p>
+        </div>
+    </div>
+
+    <div id="main">
+        
+        <!-- PANEL 1: CHAT CON MEMORIA Y FUENTES -->
+        <div id="chat-panel" class="panel active-panel">
+            <h2>Tutoría Inteligente</h2>
+            <div class="input-group">
+                <input type="text" id="pregunta" placeholder="¿Qué dice la normativa sobre...?" onkeypress="if(event.key === 'Enter') enviarPregunta()">
+                <button onclick="enviarPregunta()">Preguntar</button>
+            </div>
+            <div id="respuesta">Escribe una pregunta para empezar...</div>
+            <div id="fuentes" class="sources-box" style="display: none;">
+                <strong>Documentos de referencia:</strong> <div id="tags-container"></div>
+            </div>
+        </div>
+
+        <!-- PANEL 2: RESUMEN INTELIGENTE -->
+        <div id="resumen-panel" class="panel">
+            <h2>Píldoras de Alto Rendimiento</h2>
+            <p style="color: #666;">El sistema analiza foros de opositores y cruza las tendencias con la teoría de tu temario.</p>
+            <button class="resumen-btn" onclick="generarResumenInteligente()">Generar Resumen de Temario</button>
+            <div id="estado-carga"></div>
+            <div id="resumen-content"></div>
+        </div>
+
+        <!-- PANEL 3: SIMULACROS DE TEST CON PUNTUACIÓN -->
+        <div id="test-panel" class="panel">
+            <h2>Simulacros de Examen</h2>
+            <p style="color: #666;">Pon a prueba tus conocimientos con preguntas extraídas directamente de tu temario oficial.</p>
+            <button class="test-btn" onclick="generarTest()">Generar Pregunta de Test Aleatoria</button>
+            <div id="test-container"></div>
+        </div>
+
+    </div>
+
+    <script>
+        let score = 0;
+        let total = 0;
+
+        function switchPanel(panelId, btnId) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active-panel'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-nav'));
+            
+            document.getElementById(panelId).classList.add('active-panel');
+            document.getElementById(btnId).classList.add('active-nav');
+        }
+
+        async function enviarPregunta() {
+            const p = document.getElementById('pregunta').value;
+            const resDiv = document.getElementById('respuesta');
+            const fuentesDiv = document.getElementById('fuentes');
+            const tagsContainer = document.getElementById('tags-container');
+            
+            if (!p.trim()) return;
+            
+            resDiv.innerText = "Buscando en el temario...";
+            fuentesDiv.style.display = "none";
+            tagsContainer.innerHTML = "";
+            
+            try {
+                // RUTA RELATIVA
+                const res = await fetch('/pregunta', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({pregunta: p})
+                });
+                const data = await res.json();
+                resDiv.innerText = data.respuesta;
+                
+                if (data.fuentes && data.fuentes.length > 0) {
+                    fuentesDiv.style.display = "block";
+                    data.fuentes.forEach(fuente => {
+                        const tag = document.createElement('span');
+                        tag.className = 'source-tag';
+                        tag.innerText = fuente;
+                        tagsContainer.appendChild(tag);
+                    });
+                }
+            } catch (err) { 
+                resDiv.innerText = "Error: No se pudo conectar con el servidor."; 
+            }
+        }
+
+        async function generarTest() {
+            const container = document.getElementById('test-container');
+            container.style.display = "block";
+            container.innerHTML = "<strong>Creando pregunta de examen...</strong>";
+            
+            try {
+                // RUTA RELATIVA
+                const res = await fetch('/generar-test');
+                const data = await res.json();
+                const test = JSON.parse(data.test);
+                
+                container.innerHTML = `<strong>${test.pregunta}</strong>` +
+                    test.opciones.map(op => `<button class="option-btn" onclick="validarRespuesta('${op[0]}', '${test.correcta}')">${op}</button>`).join('');
+            } catch (err) { 
+                container.innerHTML = "<strong>Error generando el test.</strong>"; 
+            }
+        }
+
+        function validarRespuesta(sel, corr) {
+            total++;
+            if (sel === corr) {
+                score++;
+                alert("¡CORRECTO!");
+            } else {
+                alert("Incorrecto. La respuesta correcta era la opción: " + corr);
+            }
+            
+            document.getElementById('score-val').innerText = score;
+            document.getElementById('total-val').innerText = total;
+            
+            generarTest();
+        }
+
+        async function generarResumenInteligente() {
+            const container = document.getElementById('resumen-content');
+            const estado = document.getElementById('estado-carga');
+            
+            container.innerHTML = "";
+            estado.innerHTML = "<p class='loading-text'>1. 🌐 Rastreando foros y tendencias con Tavily...</p>";
+            
+            setTimeout(() => {
+                if(estado.innerHTML !== "") estado.innerHTML += "<p class='loading-text'>2. 📚 Cruzando datos con tu temario local...</p>";
+            }, 2500);
+
+            setTimeout(() => {
+                if(estado.innerHTML !== "") estado.innerHTML += "<p class='loading-text'>3. 🧠 Redactando la píldora de alto rendimiento...</p>";
+            }, 5000);
+
+            try {
+                // RUTA RELATIVA
+                const res = await fetch('/generar-resumen-inteligente');
+                const data = await res.json();
+                estado.innerHTML = ""; 
+                container.innerHTML = data.resumen;
+            } catch (err) { 
+                estado.innerHTML = "";
+                container.innerHTML = "<p style='color:red;'><strong>Error de conexión al generar el resumen.</strong></p>"; 
+            }
+        }
+    </script>
+</body>
+</html>
