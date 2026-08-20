@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from langchain_chroma import Chroma
+from langchain_pinecone import PineconeVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -19,13 +19,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Leemos las claves desde las variables de entorno o valores por defecto
+# Leemos las claves desde las variables de entorno (vacías por defecto para que Render las inyecte)
 os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY", "")
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY", "")
+os.environ["PINECONE_API_KEY"] = os.getenv("PINECONE_API_KEY", "")
 
-# Cerebro y Retriever
+# Cerebro y Retriever conectado a la nube (Pinecone)
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-vectorstore = Chroma(persist_directory="./chroma_db", embedding_function=embeddings)
+vectorstore = PineconeVectorStore(index_name="ujierpro", embedding=embeddings)
 retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 6})
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
