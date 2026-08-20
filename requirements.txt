@@ -6,6 +6,6 @@ pinecone-client==3.2.2
 langchain-google-genai==1.0.1
 langchain-community==0.0.29
 tavily-python==0.3.3
-sentence-transformers==2.5.1
+sentence-transformers==2.6.1
 simsimd==4.0.0
 langchain-huggingface==0.0.3
