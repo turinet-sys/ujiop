@@ -8,3 +8,4 @@ langchain-community==0.0.29
 tavily-python==0.3.3
 sentence-transformers==2.5.1
 simsimd==4.0.0
+langchain-huggingface==0.0.3
